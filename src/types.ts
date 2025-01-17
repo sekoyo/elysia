@@ -1485,24 +1485,40 @@ export type EmptyRouteSchema = {
 	response: {}
 }
 
-type _ComposeElysiaResponse<Response, Handle> = Prettify<
-	{} extends Response
-		? {
-				200: Exclude<Handle, ElysiaCustomStatusResponse<any, any, any>>
-			} & {
-				[ErrorResponse in Extract<
-					Handle,
-					ElysiaCustomStatusResponse<any, any, any>
-				> as ErrorResponse extends ElysiaCustomStatusResponse<
-					any,
-					any,
-					any
-				>
-					? ErrorResponse['code']
-					: never]: ErrorResponse['response']
-			}
-		: Response
+type _ComposeElysiaResponse<Schema extends RouteSchema, Handle> = Prettify<
+	{} extends Schema['response']
+		? Prettify<
+				{
+					200: Exclude<
+						Handle,
+						ElysiaCustomStatusResponse<any, any, any>
+					>
+				} & ExtractErrorFromHandle<Handle> &
+					(EmptyRouteSchema extends Schema
+						? {}
+						: {
+								422: {
+									type: 'validation'
+									on: string
+									summary?: string
+									message?: string
+									found?: unknown
+									property?: string
+									expected?: string
+								}
+							})
+		  >
+		: Schema['response']
 >
+
+type ExtractErrorFromHandle<Handle> = {
+	[ErrorResponse in Extract<
+		Handle,
+		ElysiaCustomStatusResponse<any, any, any>
+	> as ErrorResponse extends ElysiaCustomStatusResponse<any, any, any>
+		? ErrorResponse['code']
+		: never]: ErrorResponse['response']
+}
 
 export type MergeElysiaInstances<
 	Instances extends AnyElysia[] = [],
